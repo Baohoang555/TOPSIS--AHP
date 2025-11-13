@@ -47,7 +47,4 @@ Trước khi chạy ứng dụng, bạn cần tạo file ma trận quyết đị
 1.  Mở Terminal của bạn.
 2.  **Quan trọng:** Đảm bảo bạn đang ở thư mục **gốc** của dự án (`TOPSIS+ AHP/`), **không** phải bên trong thư mục `app/`.
 3.  Chạy lệnh sau:
-
-    ```bash
     streamlit run app/main.py
-    ```
