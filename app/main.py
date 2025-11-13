@@ -314,3 +314,82 @@ else:
 
     except Exception as e:
         st.error(f"LỖI: Không thể đọc file CSV. Vui lòng đảm bảo file đúng định dạng. Lỗi: {e}")
+
+st.divider()
+
+# 3. Khu vực Phân tích Nhạy cảm (Sensitivity Analysis)
+st.header("3. Phân tích Nhạy cảm (Sensitivity Analysis)")
+
+if 'ahp_weights' not in st.session_state:
+    st.warning("Vui lòng tính 'Trọng số AHP Toàn cục' ở thanh bên trái trước khi chạy Phân tích Nhạy cảm.")
+else:
+    st.success("Đã có Trọng số AHP. Sẵn sàng chạy Phân tích Nhạy cảm.")
+    
+    try:
+        df_decision = pd.read_csv("src/Data Preprocessing/DECISION_MATRIX_FOR_TOPSIS.csv")
+        st.write("Ma trận Quyết định (từ file CSV mặc định):")
+        st.dataframe(df_decision.head())
+
+        if st.button("Chạy Phân tích Nhạy cảm với 3 Kịch bản", use_container_width=True, type="primary"):
+            tickers = df_decision['ticker']
+            matrix_data = df_decision[ALL_CRITERIA_ORDERED]
+
+            # Kịch bản 1: Ưu tiên cân bằng (Equal weights)
+            st.subheader("Kịch bản 1: Ưu tiên cân bằng")
+            equal_weights = np.ones(len(ALL_CRITERIA_ORDERED)) / len(ALL_CRITERIA_ORDERED)
+            scores_1 = run_topsis_analysis(matrix_data, equal_weights, CRITERIA_TYPES)
+            df_results_1 = pd.DataFrame({'Ticker': tickers, 'TOPSIS_Score': scores_1})
+            df_results_1['Rank'] = df_results_1['TOPSIS_Score'].rank(ascending=False).astype(int)
+            df_results_1 = df_results_1.sort_values(by='Rank')
+            st.dataframe(df_results_1)
+
+            # Kịch bản 2: Ưu tiên mạnh về Sinh lời (Profitability)
+            st.subheader("Kịch bản 2: Ưu tiên mạnh về Sinh lời")
+            # Giả lập trọng số AHP: Nhóm Sinh lời có trọng số cao
+            group_weights = np.array([0.1, 0.6, 0.2, 0.1])  # Định giá, Sinh lời, Rủi ro, Hiệu quả
+            local_weights = {
+                'Định giá': np.array([0.33, 0.33, 0.34]),
+                'Khả năng sinh lời': np.array([0.5, 0.3, 0.2]),
+                'Sức khỏe tài chính': np.array([0.33, 0.33, 0.34]),
+                'Hiệu quả hoạt động': np.array([0.5, 0.5])
+            }
+            global_weights_2 = np.concatenate([
+                group_weights[0] * local_weights['Định giá'],
+                group_weights[1] * local_weights['Khả năng sinh lời'],
+                group_weights[2] * local_weights['Sức khỏe tài chính'],
+                group_weights[3] * local_weights['Hiệu quả hoạt động']
+            ])
+            scores_2 = run_topsis_analysis(matrix_data, global_weights_2, CRITERIA_TYPES)
+            df_results_2 = pd.DataFrame({'Ticker': tickers, 'TOPSIS_Score': scores_2})
+            df_results_2['Rank'] = df_results_2['TOPSIS_Score'].rank(ascending=False).astype(int)
+            df_results_2 = df_results_2.sort_values(by='Rank')
+            st.dataframe(df_results_2)
+
+            # Kịch bản 3: Ưu tiên mạnh về Rủi ro thấp (Low Risk)
+            st.subheader("Kịch bản 3: Ưu tiên mạnh về Rủi ro thấp")
+            # Giả lập trọng số AHP: Nhóm Rủi ro có trọng số cao
+            group_weights_3 = np.array([0.1, 0.1, 0.6, 0.2])  # Định giá, Sinh lời, Rủi ro, Hiệu quả
+            global_weights_3 = np.concatenate([
+                group_weights_3[0] * local_weights['Định giá'],
+                group_weights_3[1] * local_weights['Khả năng sinh lời'],
+                group_weights_3[2] * local_weights['Sức khỏe tài chính'],
+                group_weights_3[3] * local_weights['Hiệu quả hoạt động']
+            ])
+            scores_3 = run_topsis_analysis(matrix_data, global_weights_3, CRITERIA_TYPES)
+            df_results_3 = pd.DataFrame({'Ticker': tickers, 'TOPSIS_Score': scores_3})
+            df_results_3['Rank'] = df_results_3['TOPSIS_Score'].rank(ascending=False).astype(int)
+            df_results_3 = df_results_3.sort_values(by='Rank')
+            st.dataframe(df_results_3)
+
+            # So sánh các kịch bản
+            st.subheader("So sánh Xếp hạng giữa các Kịch bản")
+            comparison = pd.DataFrame({
+                'Ticker': tickers,
+                'Rank_KB1': df_results_1['Rank'].values,
+                'Rank_KB2': df_results_2['Rank'].values,
+                'Rank_KB3': df_results_3['Rank'].values
+            })
+            st.dataframe(comparison)
+
+    except Exception as e:
+        st.error(f"LỖI: Không thể đọc file CSV mặc định. Lỗi: {e}")
